@@ -1,13 +1,18 @@
 ---
 name: write-notes-like-deepseek
 description: Use when a change is non-trivial by DSH standards (behavior, architecture, cross-file contracts, process/tooling, testing strategy, or on-disk/wire/config formats), when choosing between technical alternatives, superseding a decision, or writing a postmortem. Records the why and rejected options in .agents/notes/ with script-enforced gates; skips purely mechanical edits (CRUD, styling, patches, tagging, formatting).
+metadata:
+  version: 1.0.0
+compatibility:
+  tav-workflow: ">=3.20.0"          # Phase 4 knowledge consolidation
+  spec-driven-develop: ">=1.29.0"   # Phase 5b decision recording (behavioral rule 16)
 ---
 
 # Write Notes Like DeepSeek
 
 > 方法提炼自 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的工程实践。聊天里的 Agent 负责拆任务、排计划；本 Skill 只做一件事：为什么这样改、放弃了什么、怎么证明改对了，都留在一处，给下一个改这段代码的人用。
 
-## 红线：先判要不要写，再谈怎么写
+## 红线：先判要不要写,再谈怎么写
 
 模型有迎合强迫症，动不动就想立 Note。先过这道闸：
 
@@ -18,7 +23,10 @@ description: Use when a change is non-trivial by DSH standards (behavior, archit
 - 依赖补丁（不改行为）、版本发布打标（RC/Release tag）
 - 常规 CRUD、单模块内看 diff 即懂的显式逻辑修复（无跨文件影响）
 
-**判定对齐 DSH：非平凡改动必须写。** 命中以下任何一项即非平凡——改了**行为**、改了**架构**、改了**跨文件契约**、改了**流程与工具链**、改了**测试策略**、改了**落盘 / 网络 / 配置格式**——或其他维护者日后可能重访的决定。
+**判定对齐 TAV/SDD：** 见 `../../shared-references/change-classification.md`。
+- **L0 变更**（trivial）免写笔记：单文件、~30 行以内、无运行时/契约/安全影响
+- **L1 变更**（standard）按"非平凡"清单判定：命中任何一项即非平凡——改了**行为**、改了**架构**、改了**跨文件契约**、改了**流程与工具链**、改了**测试策略**、改了**落盘 / 网络 / 配置格式**
+- **L2 变更**（complex，满足至少两个升级信号）必写，通常是 architecture / process 类
 
 **写之前，对照三个方向想清楚这篇笔记守住什么：**
 
@@ -140,7 +148,96 @@ Status: <状态>
 
 > 判定细则见 `references/when-to-write.md`，归档与删除见 `references/archiving.md`。
 
-## 5. 怎么写好
+## 5. 与 TAV/SDD 的集成
+
+### 从 TAV Phase 4 调用
+
+**触发条件**：TAV 知识沉淀捕获信号 + 决定类型判定
+
+```
+TAV Phase 4 capture signal 触发
+  ↓
+判定是否为 decision 类型（costly + surprising + trade-off）
+  ↓ 是
+提取候选：问题 + 选择 + 备选 + 理由
+  ↓
+调用 write-notes-like-deepseek
+  ↓
+写入 .agents/notes/implemented/<class>/
+  ↓
+TAV Verifier 验证笔记（post-consolidation verification）
+```
+
+**Class 映射**（与 `../../shared-references/change-classification.md` 对齐）：
+- 安全敏感面变更 + 新增验证策略 → `feature` 或 `architecture`（取决于范围）
+- Bug 修复 + 非显然根因 → `bug-fix`
+- 测试策略变更 → `testing`
+- 工具链/CI 变更 → `process`
+- 代码删减/API 收窄 → `simplification`
+- 跨模块协调契约 → `architecture`
+
+**决策类型判定**（TAV Phase 4 → WNLD）：
+
+满足**全部三个**条件才是 decision note：
+1. **Costly to reverse** — 架构选择、契约变更、schema 迁移、技术选型
+2. **Surprising without context** — 非显然约束、被否决的备选有独特理由
+3. **Genuine trade-off** — 多个有效方案存在，选择非平凡
+
+不满足三条件的知识沉淀走其他表面（memory、instruction surface），不写 decision note。
+
+### 从 SDD Phase 5b 调用
+
+**触发条件**：SDD behavioral rule 16（详见 `../../../spec-driven-develop/plugins/spec-driven-develop/skills/spec-driven-develop/references/behavioral-rules.md`）
+
+```
+TAV 周期完成
+  ↓
+返回 decision candidates（满足 rule 16）
+  ↓
+SDD orchestrator 批量评估
+  ↓
+每个 qualifying decision 调用 WNLD
+  ↓
+写入 .agents/notes/implemented/<class>/
+  ↓
+更新 MASTER.md § "Governance Status"
+```
+
+**Batch-level decisions**：
+- 跨任务的架构决策（如 shared contract 定义）
+- Batch 级的测试策略
+- Delivery shape 选择（expand-contract, vertical slice）
+- Integration strategy or merge conflict resolution pattern
+
+**与 Task-level decisions 的区别**：
+- Task-level: 单个任务卡的实现选择，写在该任务的 TAV Phase 4
+- Batch-level: 整个 batch 的编排决策，写在 SDD Phase 5b 集成时
+
+### 独立使用
+
+当用户直接要求"记录这个决定"时，按标准流程：
+1. 判定非平凡（见上方"红线"，对齐 L0/L1/L2 分类）
+2. 当场审计（搜索 proposed/implemented/rejected）
+3. 写入或更新
+4. 运行验证脚本
+
+### 返回格式（供 TAV/SDD 调用）
+
+当从 TAV/SDD 被调用时，返回：
+
+```json
+{
+  "note_path": ".agents/notes/implemented/<class>/yyyy-mm-dd-topic.md",
+  "verification_passed": true,
+  "verification_errors": [],
+  "class": "<feature|bug-fix|simplification|architecture|process|testing>",
+  "status": "implemented"
+}
+```
+
+失败时返回 `verification_passed: false` 和具体错误列表，但不阻塞任务完成；候选返回给用户手动处理。
+
+## 6. 怎么写好
 
 - `## Consequences` 同时写**代价和收益**，不是只写"放弃了什么"。
 - 自由节（package 拓扑、wire 契约、schema 等）放在 `Decision` 与 `Alternatives` 之间，保持可检索的机制名与 `must / may / never` 时序强调。
