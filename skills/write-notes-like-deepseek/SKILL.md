@@ -1,11 +1,12 @@
 ---
 name: write-notes-like-deepseek
-description: Use when a change is non-trivial by DSH standards (behavior, architecture, cross-file contracts, process/tooling, testing strategy, or on-disk/wire/config formats), when choosing between technical alternatives, superseding a decision, or writing a postmortem. Records the why and rejected options in .agents/notes/ with script-enforced gates; skips purely mechanical edits (CRUD, styling, patches, tagging, formatting).
+description: Use when a change is non-trivial by DeepSeek Harness (DSH) standards (behavior, architecture, cross-file contracts, process/tooling, testing strategy, or on-disk/wire/config formats), when choosing between technical alternatives, superseding a decision, or writing a postmortem. Records the why and rejected options in .agents/notes/ with script-enforced gates; skips purely mechanical edits (CRUD, styling, patches, tagging, formatting).
+license: MIT
 metadata:
   version: 1.0.0
 compatibility:
-  tav-workflow: ">=3.20.0"          # Phase 4 knowledge consolidation
-  spec-driven-develop: ">=1.29.0"   # Phase 5b decision recording (behavioral rule 16)
+  tav-workflow: ">=3.21.0"          # Phase 4 knowledge consolidation
+  spec-driven-develop: ">=1.30.0"   # Phase 5b decision recording (behavioral rule 16)
 ---
 
 # Write Notes Like DeepSeek
@@ -152,13 +153,13 @@ Status: <状态>
 
 ### 从 TAV Phase 4 调用
 
-**触发条件**：TAV 知识沉淀捕获信号 + 决定类型判定
+**触发条件**：write-notes 红线判定为非平凡改动（TAV 知识沉淀信号不是前置条件）
 
 ```
-TAV Phase 4 capture signal 触发
+TAV Phase 4 完成，进入知识沉淀评估
   ↓
-判定是否为 decision 类型（costly + surprising + trade-off）
-  ↓ 是
+按本 Skill 红线判定：这次改动是否非平凡？
+  ↓ 是（三条件只用于优先级排序，不用于决定写不写）
 提取候选：问题 + 选择 + 备选 + 理由
   ↓
 调用 write-notes-like-deepseek
@@ -178,12 +179,7 @@ TAV Phase 4 capture signal 触发
 
 **决策类型判定**（TAV Phase 4 → WNLD）：
 
-满足**全部三个**条件才是 decision note：
-1. **Costly to reverse** — 架构选择、契约变更、schema 迁移、技术选型
-2. **Surprising without context** — 非显然约束、被否决的备选有独特理由
-3. **Genuine trade-off** — 多个有效方案存在，选择非平凡
-
-不满足三条件的知识沉淀走其他表面（memory、instruction surface），不写 decision note。
+三个条件（costly to reverse / surprising without context / genuine trade-off）是**优先级信号**，不是收窄门槛。decision note 的必要性由本 Skill 的红线决定：非平凡改动必须写，即使三个条件没有全部命中；trivial 改动按红线免写。三条件用于判断先写哪一篇、以及在 SDD 侧如何排序，不用于决定“写不写”。
 
 Phase 2 记录、代码尚未落地的决策先写 `proposed`；batch 集成时转 `implemented`，计划放弃时转 `rejected`（SDD Rule 16 的生命周期要求）。
 
@@ -194,11 +190,11 @@ Phase 2 记录、代码尚未落地的决策先写 `proposed`；batch 集成时�
 ```
 TAV 周期完成
   ↓
-返回 decision candidates（满足 rule 16）
+返回 decision candidates（本 Skill 红线判定为非平凡）
   ↓
 SDD orchestrator 批量评估
   ↓
-每个 qualifying decision 调用 WNLD
+对每个非平凡 decision 调用 WNLD
   ↓
 写入 .agents/notes/implemented/<class>/
   ↓
@@ -246,7 +242,7 @@ SDD orchestrator 批量评估
 - 跨 Note 引用用相对 Markdown 链接 `[topic](../../implemented/architecture/2026-…-….md)`，不要裸数字，以便机械可校验。
 - 宿主若已有此惯例，可在核心入口留一行 `// Note: ... 见 .agents/notes/...`；不是门禁。决定被取代时，这些注释是要同步的代码清单。
 - 文风与去推导痕迹见 `references/prose-checklist.md`；简化机会见 `references/simplification-checklist.md`。
-- 写完后过一遍 `references/quality-gate.md` 的语义自检，只向用户报**缺口和写得好的地方**（≤5 行），缺口给具体修法。结构靠脚本，意思靠人点头。
+- 写完后过一遍 `references/quality-gate.md` 的语义自检，只向用户报**缺口和写得好的地方**（≤5 行），缺口给具体修法。结构靠脚本，意思靠人点头。被 `tav-workflow` / `spec-driven-develop` 调用时，不单独输出本节报告：把语义自检的缺口并入调用方的最终报告（TAV 的「知识沉淀」或「剩余风险」节），避免两套报告并存。
 
 ## 7. 校验与运维命令
 
