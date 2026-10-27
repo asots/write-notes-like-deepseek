@@ -1,6 +1,6 @@
 {
   "name": "write-notes-like-deepseek",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "像 DeepSeek 团队一样维护项目：把他们在 DeepSeek Harness 里用的那套方法，装进你的仓库",

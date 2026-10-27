@@ -12,7 +12,7 @@ compatibility:
 
 > 方法提炼自 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的工程实践。聊天里的 Agent 负责拆任务、排计划；本 Skill 只做一件事：为什么这样改、放弃了什么、怎么证明改对了，都留在一处，给下一个改这段代码的人用。
 
-## 红线：先判要不要写,再谈怎么写
+## 红线：先判要不要写，再谈怎么写
 
 模型有迎合强迫症，动不动就想立 Note。先过这道闸：
 
@@ -23,7 +23,7 @@ compatibility:
 - 依赖补丁（不改行为）、版本发布打标（RC/Release tag）
 - 常规 CRUD、单模块内看 diff 即懂的显式逻辑修复（无跨文件影响）
 
-**判定对齐 TAV/SDD：** 见 `../../shared-references/change-classification.md`。
+**判定对齐 TAV/SDD：** 见 `references/change-classification.md`。
 - **L0 变更**（trivial）免写笔记：单文件、~30 行以内、无运行时/契约/安全影响
 - **L1 变更**（standard）按"非平凡"清单判定：命中任何一项即非平凡——改了**行为**、改了**架构**、改了**跨文件契约**、改了**流程与工具链**、改了**测试策略**、改了**落盘 / 网络 / 配置格式**
 - **L2 变更**（complex，满足至少两个升级信号）必写，通常是 architecture / process 类
@@ -165,10 +165,10 @@ TAV Phase 4 capture signal 触发
   ↓
 写入 .agents/notes/implemented/<class>/
   ↓
-TAV Verifier 验证笔记（post-consolidation verification）
+主 agent 执行 post-consolidation verification（TAV Phase 4，见 TAV § "Post-consolidation verification"）
 ```
 
-**Class 映射**（与 `../../shared-references/change-classification.md` 对齐）：
+**Class 映射**（class 定义见 §1；L0/L1/L2 判定见 `references/change-classification.md`）：
 - 安全敏感面变更 + 新增验证策略 → `feature` 或 `architecture`（取决于范围）
 - Bug 修复 + 非显然根因 → `bug-fix`
 - 测试策略变更 → `testing`
@@ -185,9 +185,11 @@ TAV Verifier 验证笔记（post-consolidation verification）
 
 不满足三条件的知识沉淀走其他表面（memory、instruction surface），不写 decision note。
 
+Phase 2 记录、代码尚未落地的决策先写 `proposed`；batch 集成时转 `implemented`，计划放弃时转 `rejected`（SDD Rule 16 的生命周期要求）。
+
 ### 从 SDD Phase 5b 调用
 
-**触发条件**：SDD behavioral rule 16（详见 `../../../spec-driven-develop/plugins/spec-driven-develop/skills/spec-driven-develop/references/behavioral-rules.md`）
+**触发条件**：SDD behavioral rule 16（`spec-driven-develop` skill 行为规则文件中的 Rule 16）
 
 ```
 TAV 周期完成
@@ -235,7 +237,7 @@ SDD orchestrator 批量评估
 }
 ```
 
-失败时返回 `verification_passed: false` 和具体错误列表，但不阻塞任务完成；候选返回给用户手动处理。
+失败时返回 `verification_passed: false` 和具体错误列表。TAV/SDD 调用方必须在标记完成前修正笔记并重跑校验（见 TAV § "Post-consolidation verification"）；无法修复时把该候选降级为最终报告中的待办，不得把校验失败当作通过。
 
 ## 6. 怎么写好
 
@@ -246,7 +248,7 @@ SDD orchestrator 批量评估
 - 文风与去推导痕迹见 `references/prose-checklist.md`；简化机会见 `references/simplification-checklist.md`。
 - 写完后过一遍 `references/quality-gate.md` 的语义自检，只向用户报**缺口和写得好的地方**（≤5 行），缺口给具体修法。结构靠脚本，意思靠人点头。
 
-## 6. 校验与运维命令
+## 7. 校验与运维命令
 
 在仓库根目录直接运行（已配置 npm script 时）：
 
@@ -283,6 +285,7 @@ npx tsx .agents/skills/write-notes-like-deepseek/scripts/build-board.ts --init b
 按需加载：
 
 - `references/note-format.md` — 头块与 body 骨架展开
+- `references/change-classification.md` — L0/L1/L2 判定与 L2 升级信号（与 TAV/SDD 同步）
 - `references/classification.md` — 6 class 判定与边界
 - `references/when-to-write.md` — 何时新建 / 更新 / 流转（含与 DSH 判定对齐关系的说明）
 - `references/archiving.md` — 归档与合并删除（含"未来参考价值"判定）
